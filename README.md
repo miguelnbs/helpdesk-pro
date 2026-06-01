@@ -1,8 +1,26 @@
-# HelpDesk Pro — Etapas 1 e 2: Setup, Banco e Autenticação
-
-## Visão geral do projeto
+# HelpDesk Pro
 
 Sistema interno de abertura e gestão de chamados técnicos, com painel administrativo, controle de SLA, histórico de interações e dashboard operacional.
+
+> 🚧 **Projeto em desenvolvimento ativo.** As etapas concluídas estão documentadas abaixo. As etapas em andamento serão adicionadas conforme forem finalizadas.
+
+---
+
+## Status do projeto
+
+| Etapa | Descrição | Status |
+|---|---|---|
+| 1 | Setup, banco e conexão | ✅ Concluída |
+| 2 | Autenticação e middlewares | ✅ Concluída |
+| 3 | Rotas de chamados (tickets) | 🚧 Em desenvolvimento |
+| 4 | Painel administrativo e status | 🚧 Em desenvolvimento |
+| 5 | Dashboard Streamlit | 🚧 Em desenvolvimento |
+| 6 | Frontend React | 🚧 Em desenvolvimento |
+| 7 | Deploy completo | 🚧 Em desenvolvimento |
+
+---
+
+## Visão geral
 
 **Stack completa do projeto:**
 
@@ -52,21 +70,23 @@ helpdesk-pro/
 │   │   ├── __init__.py
 │   │   └── auth.py            ← validação JWT e controle de perfil
 │   ├── .env                   ← variáveis de ambiente (não subir no git)
+│   ├── .env.example           ← modelo de variáveis de ambiente
 │   ├── main.py                ← entrypoint da API
 │   ├── database.py            ← conexão com Supabase
 │   └── requirements.txt       ← dependências Python
-└── frontend/                  ← React (próximas etapas)
+└── frontend/                  ← React (em desenvolvimento)
 ```
 
 ---
 
-## .gitignore recomendado
+## .gitignore
 
 ```
 venv/
 .env
 __pycache__/
 *.pyc
+*.pyo
 .DS_Store
 node_modules/
 dist/
@@ -74,7 +94,7 @@ dist/
 
 ---
 
-# Etapa 1 — Setup, Banco e Conexão
+# ✅ Etapa 1 — Setup, Banco e Conexão
 
 ## Pré-requisitos
 
@@ -294,7 +314,7 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-# Etapa 2 — Autenticação
+# ✅ Etapa 2 — Autenticação
 
 ## Fluxo de autenticação
 
@@ -483,9 +503,11 @@ def require_admin(profile=Depends(get_current_profile)):
 
 ---
 
-# Próxima etapa
+# 🚧 Etapa 3 — Rotas de chamados (tickets)
 
-**Etapa 3 — Rotas de chamados (tickets)**
+> Em desenvolvimento. Será documentada ao final da etapa.
+
+**Rotas previstas:**
 
 | Rota | Método | Descrição |
 |---|---|---|
@@ -495,3 +517,27 @@ def require_admin(profile=Depends(get_current_profile)):
 | `/tickets/{id}/status` | PATCH | Atualizar status (admin) |
 | `/tickets/{id}/updates` | POST | Adicionar resposta ao chamado |
 | `/tickets/all` | GET | Listar todos os chamados (admin) |
+
+---
+
+# 🚧 Etapa 4 — Painel administrativo e status
+
+> Em desenvolvimento. Será documentada ao final da etapa.
+
+---
+
+# 🚧 Etapa 5 — Dashboard Streamlit
+
+> Em desenvolvimento. Será documentada ao final da etapa.
+
+---
+
+# 🚧 Etapa 6 — Frontend React
+
+> Em desenvolvimento. Será documentada ao final da etapa.
+
+---
+
+# 🚧 Etapa 7 — Deploy completo
+
+> Em desenvolvimento. Será documentada ao final da etapa.
