@@ -27,11 +27,16 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 def get_current_profile(current_user=Depends(get_current_user)):
     try:
+        print(f"USER ID: {current_user.id}")
+        print(f"USER ID TYPE: {type(current_user.id)}")
+
         response = supabase.table("profiles") \
             .select("*") \
             .eq("id", str(current_user.id)) \
             .single() \
             .execute()
+
+        print(f"RESPONSE: {response.data}")
 
         if not response.data:
             raise HTTPException(
@@ -42,6 +47,7 @@ def get_current_profile(current_user=Depends(get_current_user)):
         return response.data
 
     except Exception as e:
+        print(f"ERRO: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Perfil não encontrado"
