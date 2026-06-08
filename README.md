@@ -2,7 +2,7 @@
 
 Sistema interno de abertura e gestão de chamados técnicos, com painel administrativo, controle de SLA, histórico de interações e dashboard operacional.
 
-> 🚧 **Projeto em desenvolvimento ativo.** As etapas concluídas estão documentadas abaixo. As etapas em andamento serão adicionadas conforme forem finalizadas.
+> 🚧 **Projeto em desenvolvimento ativo.** Deploy em andamento.
 
 ---
 
@@ -15,7 +15,7 @@ Sistema interno de abertura e gestão de chamados técnicos, com painel administ
 | 3 | Rotas de chamados (tickets) | ✅ Concluída |
 | 4 | Rotas administrativas | ✅ Concluída |
 | 5 | Dashboard Streamlit | ✅ Concluída |
-| 6 | Frontend React | 🚧 Em desenvolvimento |
+| 6 | Frontend React | ✅ Concluída |
 | 7 | Deploy completo | 🚧 Em desenvolvimento |
 
 ---
@@ -26,10 +26,10 @@ Sistema interno de abertura e gestão de chamados técnicos, com painel administ
 
 | Camada | Tecnologia |
 |---|---|
-| Frontend | React + TypeScript + Vite + Tailwind + shadcn/ui |
+| Frontend | React + TypeScript + Vite + Tailwind CSS |
 | API | Python + FastAPI |
 | Banco de dados | Supabase (PostgreSQL) |
-| Autenticação | Supabase Auth |
+| Autenticação | Supabase Auth + JWT |
 | Dashboard | Python + Streamlit |
 | Deploy | Vercel (front) + Railway (API) + Streamlit Cloud (dashboard) |
 
@@ -81,7 +81,28 @@ helpdesk-pro/
 │   ├── .env
 │   ├── requirements.txt
 │   └── app.py
-└── frontend/              ← em desenvolvimento
+└── frontend/
+    ├── src/
+    │   ├── components/
+    │   │   └── PrivateRoute.tsx
+    │   ├── context/
+    │   │   └── AuthContext.tsx
+    │   ├── pages/
+    │   │   ├── Login.tsx
+    │   │   ├── Register.tsx
+    │   │   ├── Dashboard.tsx
+    │   │   ├── NewTicket.tsx
+    │   │   └── TicketDetail.tsx
+    │   ├── services/
+    │   │   └── api.ts
+    │   ├── types/
+    │   │   └── index.ts
+    │   ├── App.tsx
+    │   └── main.tsx
+    ├── .env
+    ├── tailwind.config.js
+    ├── postcss.config.js
+    └── package.json
 ```
 
 ---
@@ -105,39 +126,28 @@ dist/
 
 ## Pré-requisitos
 
-- Python instalado (3.10+)
+- Python 3.10+
 - Node.js instalado
 - Conta no [Supabase](https://supabase.com)
 
-## Passo 1 — Criar a estrutura de pastas
-
-```bash
-mkdir helpdesk-pro
-cd helpdesk-pro
-mkdir api frontend dashboard
-```
-
-## Passo 2 — Criar e ativar o ambiente virtual Python
+## Setup da API
 
 ```bash
 cd api
 python -m venv venv
-
-# Windows
 venv\Scripts\activate
-
-# Mac/Linux
-source venv/bin/activate
-```
-
-## Passo 3 — Instalar dependências
-
-```bash
 pip install fastapi uvicorn python-dotenv supabase "pydantic[email]"
 pip freeze > requirements.txt
 ```
 
-## Passo 4 — Criar o arquivo `database.py`
+## `.env`
+
+```
+SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
+SUPABASE_KEY=sua_anon_key_aqui
+```
+
+## `database.py`
 
 ```python
 import os
@@ -154,53 +164,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 ```
 
-## Passo 5 — Criar o arquivo `.env`
-
-```
-SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
-SUPABASE_KEY=sua_anon_key_aqui
-```
-
-> O `.env` deve ficar dentro de `api/`, nunca dentro de `venv/`.
-
-## Passo 6 — Criar o arquivo `main.py`
-
-```python
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from routers.auth import router as auth_router
-from routers.tickets import router as tickets_router
-from routers.admin import router as admin_router
-from middlewares.auth import get_current_profile
-
-app = FastAPI(
-    title="HelpDesk Pro API",
-    description="API do sistema de chamados técnicos",
-    version="1.0.0"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth_router)
-app.include_router(tickets_router)
-app.include_router(admin_router)
-
-@app.get("/health")
-def health_check():
-    return {"status": "online", "service": "HelpDesk Pro API"}
-
-@app.get("/me")
-def get_me(profile=Depends(get_current_profile)):
-    return profile
-```
-
-## Passo 7 — Criar as tabelas no Supabase
+## Tabelas no Supabase
 
 ```sql
 CREATE TABLE profiles (
@@ -234,7 +198,7 @@ CREATE TABLE ticket_updates (
 );
 ```
 
-## Passo 8 — Trigger de perfil automático
+## Trigger de perfil automático
 
 ```sql
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -255,7 +219,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
-## Passo 9 — Configurar RLS
+## RLS — Row Level Security
 
 ```sql
 -- profiles
@@ -329,14 +293,6 @@ ON public.ticket_updates FOR SELECT TO anon USING (true);
 ---
 
 # ✅ Etapa 2 — Autenticação
-
-## Estrutura
-
-```bash
-mkdir routers middlewares
-type nul > routers\__init__.py
-type nul > middlewares\__init__.py
-```
 
 ## `routers/auth.py`
 
@@ -435,181 +391,45 @@ def require_admin(profile=Depends(get_current_profile)):
 
 # ✅ Etapa 3 — Rotas de Chamados
 
-## `routers/tickets.py`
+## Rotas disponíveis
 
-```python
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional
-from database import supabase
-from middlewares.auth import get_current_profile, require_admin
-
-router = APIRouter(prefix="/tickets", tags=["tickets"])
-
-class TicketRequest(BaseModel):
-    title: str
-    description: str
-    category: str
-    priority: Optional[str] = "low"
-
-class TicketUpdateRequest(BaseModel):
-    message: str
-
-class TicketStatusRequest(BaseModel):
-    status: str
-
-@router.post("")
-def create_ticket(data: TicketRequest, profile=Depends(get_current_profile)):
-    try:
-        result = supabase.table("tickets").insert({
-            "title": data.title, "description": data.description,
-            "category": data.category, "priority": data.priority,
-            "status": "open", "created_by": profile["id"]
-        }).execute()
-        return {"message": "Chamado aberto com sucesso", "ticket": result.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.get("/all")
-def list_all_tickets(profile=Depends(require_admin)):
-    try:
-        result = supabase.table("tickets") \
-            .select("*, profiles!tickets_created_by_fkey(full_name, sector)") \
-            .order("created_at", desc=True).execute()
-        return {"tickets": result.data}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.get("")
-def list_my_tickets(profile=Depends(get_current_profile)):
-    try:
-        result = supabase.table("tickets").select("*") \
-            .eq("created_by", profile["id"]).order("created_at", desc=True).execute()
-        return {"tickets": result.data}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.get("/{ticket_id}")
-def get_ticket(ticket_id: str, profile=Depends(get_current_profile)):
-    try:
-        result = supabase.table("tickets").select("*, ticket_updates(*)") \
-            .eq("id", ticket_id).single().execute()
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Chamado não encontrado")
-        ticket = result.data
-        if profile["role"] != "admin" and ticket["created_by"] != profile["id"]:
-            raise HTTPException(status_code=403, detail="Acesso negado")
-        return ticket
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.patch("/{ticket_id}/status")
-def update_status(ticket_id: str, data: TicketStatusRequest, profile=Depends(require_admin)):
-    valid_statuses = ["open", "in_progress", "waiting", "resolved", "cancelled"]
-    if data.status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Status inválido. Use: {valid_statuses}")
-    try:
-        update_data = {"status": data.status}
-        if data.status == "resolved":
-            from datetime import datetime, timezone
-            update_data["resolved_at"] = datetime.now(timezone.utc).isoformat()
-        result = supabase.table("tickets").update(update_data).eq("id", ticket_id).execute()
-        return {"message": "Status atualizado com sucesso", "ticket": result.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.post("/{ticket_id}/updates")
-def add_update(ticket_id: str, data: TicketUpdateRequest, profile=Depends(get_current_profile)):
-    try:
-        result = supabase.table("ticket_updates").insert({
-            "ticket_id": ticket_id, "author_id": profile["id"], "message": data.message
-        }).execute()
-        return {"message": "Resposta adicionada com sucesso", "update": result.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-```
+| Rota | Método | Descrição |
+|---|---|---|
+| `/tickets` | POST | Abrir novo chamado |
+| `/tickets` | GET | Listar chamados do usuário |
+| `/tickets/all` | GET | Listar todos os chamados (admin) |
+| `/tickets/{id}` | GET | Detalhes com histórico |
+| `/tickets/{id}/status` | PATCH | Atualizar status (admin) |
+| `/tickets/{id}/updates` | POST | Adicionar resposta |
 
 ## Resultado da Etapa 3
 
 ```
-✅ POST /tickets
-✅ GET /tickets
-✅ GET /tickets/all (admin)
-✅ GET /tickets/{id}
-✅ POST /tickets/{id}/updates
-✅ PATCH /tickets/{id}/status (admin)
+✅ CRUD completo de chamados
+✅ Controle de acesso por perfil
+✅ Histórico de atualizações por chamado
+✅ Atualização de status com registro de resolved_at
 ```
 
 ---
 
 # ✅ Etapa 4 — Rotas Administrativas
 
-## `routers/admin.py`
+## Rotas disponíveis
 
-```python
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from database import supabase
-from middlewares.auth import require_admin
-
-router = APIRouter(prefix="/admin", tags=["admin"])
-
-class AssignTicketRequest(BaseModel):
-    assigned_to: str
-
-class UpdateUserRoleRequest(BaseModel):
-    role: str
-
-@router.get("/users")
-def list_users(profile=Depends(require_admin)):
-    try:
-        result = supabase.table("profiles").select("*").order("created_at", desc=True).execute()
-        return {"users": result.data}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.patch("/users/{user_id}/role")
-def update_user_role(user_id: str, data: UpdateUserRoleRequest, profile=Depends(require_admin)):
-    valid_roles = ["user", "admin"]
-    if data.role not in valid_roles:
-        raise HTTPException(status_code=400, detail=f"Role inválida. Use: {valid_roles}")
-    try:
-        result = supabase.table("profiles").update({"role": data.role}).eq("id", user_id).execute()
-        return {"message": "Role atualizada com sucesso", "user": result.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.patch("/tickets/{ticket_id}/assign")
-def assign_ticket(ticket_id: str, data: AssignTicketRequest, profile=Depends(require_admin)):
-    try:
-        result = supabase.table("tickets").update({"assigned_to": data.assigned_to}).eq("id", ticket_id).execute()
-        return {"message": "Chamado atribuído com sucesso", "ticket": result.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.get("/stats")
-def get_stats(profile=Depends(require_admin)):
-    try:
-        tickets = supabase.table("tickets").select("status, priority, created_at, resolved_at").execute()
-        data = tickets.data
-        stats = {"total": len(data), "by_status": {}, "by_priority": {}}
-        for ticket in data:
-            s = ticket["status"]
-            p = ticket["priority"]
-            stats["by_status"][s] = stats["by_status"].get(s, 0) + 1
-            stats["by_priority"][p] = stats["by_priority"].get(p, 0) + 1
-        return stats
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-```
+| Rota | Método | Descrição |
+|---|---|---|
+| `/admin/users` | GET | Listar todos os usuários |
+| `/admin/users/{id}/role` | PATCH | Atualizar role do usuário |
+| `/admin/tickets/{id}/assign` | PATCH | Atribuir chamado a técnico |
+| `/admin/stats` | GET | Estatísticas por status e prioridade |
 
 ## Resultado da Etapa 4
 
 ```
-✅ GET /admin/users
-✅ PATCH /admin/users/{id}/role
-✅ PATCH /admin/tickets/{id}/assign
-✅ GET /admin/stats
+✅ Gestão de usuários e roles
+✅ Atribuição de chamados
+✅ Estatísticas operacionais
 ```
 
 ---
@@ -626,13 +446,6 @@ pip install streamlit supabase python-dotenv pandas plotly
 pip freeze > requirements.txt
 ```
 
-## `.env`
-
-```
-SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
-SUPABASE_KEY=sua_anon_key_aqui
-```
-
 ## Rodar
 
 ```bash
@@ -643,7 +456,7 @@ Abre em `http://localhost:8501`
 
 ## Funcionalidades
 
-- KPIs: total de chamados, abertos, em atendimento, resolvidos, tempo médio de resolução
+- KPIs: total, abertos, em atendimento, resolvidos, tempo médio de resolução
 - Gráfico de barras por status
 - Gráfico de pizza por prioridade
 - Gráfico de barras por categoria
@@ -662,12 +475,82 @@ Abre em `http://localhost:8501`
 
 ---
 
-# 🚧 Etapa 6 — Frontend React
+# ✅ Etapa 6 — Frontend React
 
-> Em desenvolvimento. Será documentada ao final da etapa.
+## Setup
+
+```bash
+cd frontend
+npx create-vite@5 . --template react-ts
+npm install
+npm install axios react-router-dom
+npm install -D tailwindcss postcss autoprefixer @tailwindcss/postcss
+```
+
+## `.env`
+
+```
+VITE_API_URL=http://localhost:8000
+```
+
+## `src/index.css`
+
+```css
+@import "tailwindcss";
+```
+
+## `postcss.config.js`
+
+```js
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+    autoprefixer: {},
+  },
+}
+```
+
+## Rodar
+
+```bash
+npm run dev
+```
+
+Abre em `http://localhost:5173`
+
+## Páginas
+
+| Página | Rota | Descrição |
+|---|---|---|
+| Login | `/login` | Autenticação com email e senha |
+| Cadastro | `/register` | Criação de conta |
+| Dashboard | `/dashboard` | Listagem de chamados |
+| Novo Chamado | `/tickets/new` | Formulário de abertura |
+| Detalhes | `/tickets/:id` | Histórico e atualização de status |
+
+## Resultado da Etapa 6
+
+```
+✅ Login e cadastro funcionando
+✅ Dashboard listando chamados com status e prioridade
+✅ Formulário de novo chamado
+✅ Detalhes com histórico de atualizações
+✅ Atualização de status para admin
+✅ Rotas protegidas com PrivateRoute
+✅ Contexto de autenticação com JWT
+✅ Integração completa com a API FastAPI
+```
 
 ---
 
 # 🚧 Etapa 7 — Deploy completo
 
 > Em desenvolvimento. Será documentada ao final da etapa.
+
+**Plano de deploy:**
+
+| Serviço | Plataforma | Status |
+|---|---|---|
+| API FastAPI | Railway | 🚧 Pendente |
+| Frontend React | Vercel | 🚧 Pendente |
+| Dashboard Streamlit | Streamlit Cloud | 🚧 Pendente |
