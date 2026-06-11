@@ -2,7 +2,16 @@
 
 Sistema interno de abertura e gestão de chamados técnicos, com painel administrativo, controle de SLA, histórico de interações e dashboard operacional.
 
-> 🚧 **Projeto em desenvolvimento ativo.** Deploy em andamento.
+---
+
+## Links de produção
+
+| Serviço | URL |
+|---|---|
+| Frontend | https://helpdesk-pro-rosy.vercel.app |
+| API | https://helpdesk-pro-production-06b5.up.railway.app |
+| Dashboard | https://appdesk-pro-hf2cgtvatyycth8udqclw6.streamlit.app |
+| Documentação da API | https://helpdesk-pro-production-06b5.up.railway.app/docs |
 
 ---
 
@@ -16,7 +25,7 @@ Sistema interno de abertura e gestão de chamados técnicos, com painel administ
 | 4 | Rotas administrativas | ✅ Concluída |
 | 5 | Dashboard Streamlit | ✅ Concluída |
 | 6 | Frontend React | ✅ Concluída |
-| 7 | Deploy completo | 🚧 Em desenvolvimento |
+| 7 | Deploy completo | ✅ Concluída |
 
 ---
 
@@ -73,6 +82,8 @@ helpdesk-pro/
 │   │   └── auth.py
 │   ├── .env
 │   ├── .env.example
+│   ├── Procfile
+│   ├── runtime.txt
 │   ├── main.py
 │   ├── database.py
 │   └── requirements.txt
@@ -90,6 +101,8 @@ helpdesk-pro/
     │   ├── pages/
     │   │   ├── Login.tsx
     │   │   ├── Register.tsx
+    │   │   ├── ForgotPassword.tsx
+    │   │   ├── ResetPassword.tsx
     │   │   ├── Dashboard.tsx
     │   │   ├── NewTicket.tsx
     │   │   └── TicketDetail.tsx
@@ -100,6 +113,7 @@ helpdesk-pro/
     │   ├── App.tsx
     │   └── main.tsx
     ├── .env
+    ├── vercel.json
     ├── tailwind.config.js
     ├── postcss.config.js
     └── package.json
@@ -122,47 +136,46 @@ dist/
 
 ---
 
-# ✅ Etapa 1 — Setup, Banco e Conexão
+## Como rodar localmente
 
-## Pré-requisitos
-
-- Python 3.10+
-- Node.js instalado
-- Conta no [Supabase](https://supabase.com)
-
-## Setup da API
+### API
 
 ```bash
 cd api
 python -m venv venv
 venv\Scripts\activate
-pip install fastapi uvicorn python-dotenv supabase "pydantic[email]"
-pip freeze > requirements.txt
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-## `.env`
+API disponível em `http://localhost:8000`
+Documentação em `http://localhost:8000/docs`
 
+### Dashboard
+
+```bash
+cd dashboard
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app.py
 ```
-SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
-SUPABASE_KEY=sua_anon_key_aqui
+
+Dashboard disponível em `http://localhost:8501`
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-## `database.py`
+Frontend disponível em `http://localhost:5173`
 
-```python
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-from supabase import create_client, Client
+---
 
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path, override=True)
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-```
+# ✅ Etapa 1 — Setup, Banco e Conexão
 
 ## Tabelas no Supabase
 
@@ -294,104 +307,30 @@ ON public.ticket_updates FOR SELECT TO anon USING (true);
 
 # ✅ Etapa 2 — Autenticação
 
-## `routers/auth.py`
+## Rotas
 
-```python
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, EmailStr
-from database import supabase
-
-router = APIRouter(prefix="/auth", tags=["auth"])
-
-class RegisterRequest(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-@router.post("/register")
-def register(data: RegisterRequest):
-    try:
-        response = supabase.auth.sign_up({
-            "email": data.email,
-            "password": data.password,
-            "options": {"data": {"full_name": data.full_name}}
-        })
-        if response.user is None:
-            raise HTTPException(status_code=400, detail="Erro ao criar usuário")
-        return {"message": "Usuário criado com sucesso", "user_id": str(response.user.id), "email": response.user.email}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.post("/login")
-def login(data: LoginRequest):
-    try:
-        response = supabase.auth.sign_in_with_password({"email": data.email, "password": data.password})
-        if response.user is None:
-            raise HTTPException(status_code=401, detail="Credenciais inválidas")
-        return {
-            "access_token": response.session.access_token,
-            "token_type": "bearer",
-            "user_id": str(response.user.id),
-            "email": response.user.email
-        }
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
-```
-
-## `middlewares/auth.py`
-
-```python
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import supabase
-
-security = HTTPBearer()
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    try:
-        response = supabase.auth.get_user(token)
-        if response.user is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido ou expirado")
-        return response.user
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido ou expirado")
-
-def get_current_profile(current_user=Depends(get_current_user)):
-    try:
-        response = supabase.table("profiles").select("*").eq("id", str(current_user.id)).single().execute()
-        if not response.data:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil não encontrado")
-        return response.data
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil não encontrado")
-
-def require_admin(profile=Depends(get_current_profile)):
-    if profile["role"] != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
-    return profile
-```
+| Rota | Método | Descrição |
+|---|---|---|
+| `/auth/register` | POST | Cadastro de usuário |
+| `/auth/login` | POST | Login com retorno de JWT |
+| `/auth/forgot-password` | POST | Envio de email de recuperação |
+| `/auth/reset-password` | POST | Redefinição de senha |
+| `/me` | GET | Perfil do usuário autenticado |
 
 ## Resultado da Etapa 2
 
 ```
-✅ POST /auth/register
-✅ POST /auth/login com retorno de JWT
-✅ Middleware get_current_user
-✅ Middleware get_current_profile
-✅ Middleware require_admin
-✅ GET /me funcionando end to end
+✅ Cadastro e login com JWT
+✅ Recuperação e redefinição de senha
+✅ Middleware de autenticação reutilizável
+✅ Controle de acesso por perfil (user/admin)
 ```
 
 ---
 
 # ✅ Etapa 3 — Rotas de Chamados
 
-## Rotas disponíveis
+## Rotas
 
 | Rota | Método | Descrição |
 |---|---|---|
@@ -415,7 +354,7 @@ def require_admin(profile=Depends(get_current_profile)):
 
 # ✅ Etapa 4 — Rotas Administrativas
 
-## Rotas disponíveis
+## Rotas
 
 | Rota | Método | Descrição |
 |---|---|---|
@@ -435,24 +374,6 @@ def require_admin(profile=Depends(get_current_profile)):
 ---
 
 # ✅ Etapa 5 — Dashboard Streamlit
-
-## Setup
-
-```bash
-cd dashboard
-python -m venv venv
-venv\Scripts\activate
-pip install streamlit supabase python-dotenv pandas plotly
-pip freeze > requirements.txt
-```
-
-## Rodar
-
-```bash
-streamlit run app.py
-```
-
-Abre em `http://localhost:8501`
 
 ## Funcionalidades
 
@@ -477,53 +398,14 @@ Abre em `http://localhost:8501`
 
 # ✅ Etapa 6 — Frontend React
 
-## Setup
-
-```bash
-cd frontend
-npx create-vite@5 . --template react-ts
-npm install
-npm install axios react-router-dom
-npm install -D tailwindcss postcss autoprefixer @tailwindcss/postcss
-```
-
-## `.env`
-
-```
-VITE_API_URL=http://localhost:8000
-```
-
-## `src/index.css`
-
-```css
-@import "tailwindcss";
-```
-
-## `postcss.config.js`
-
-```js
-export default {
-  plugins: {
-    '@tailwindcss/postcss': {},
-    autoprefixer: {},
-  },
-}
-```
-
-## Rodar
-
-```bash
-npm run dev
-```
-
-Abre em `http://localhost:5173`
-
 ## Páginas
 
 | Página | Rota | Descrição |
 |---|---|---|
 | Login | `/login` | Autenticação com email e senha |
 | Cadastro | `/register` | Criação de conta |
+| Esqueci senha | `/forgot-password` | Envio de link de recuperação |
+| Redefinir senha | `/reset-password` | Nova senha via link |
 | Dashboard | `/dashboard` | Listagem de chamados |
 | Novo Chamado | `/tickets/new` | Formulário de abertura |
 | Detalhes | `/tickets/:id` | Histórico e atualização de status |
@@ -531,7 +413,7 @@ Abre em `http://localhost:5173`
 ## Resultado da Etapa 6
 
 ```
-✅ Login e cadastro funcionando
+✅ Login, cadastro e recuperação de senha
 ✅ Dashboard listando chamados com status e prioridade
 ✅ Formulário de novo chamado
 ✅ Detalhes com histórico de atualizações
@@ -543,14 +425,36 @@ Abre em `http://localhost:5173`
 
 ---
 
-# 🚧 Etapa 7 — Deploy completo
+# ✅ Etapa 7 — Deploy completo
 
-> Em desenvolvimento. Será documentada ao final da etapa.
+## Configuração do Railway (API)
 
-**Plano de deploy:**
+- **Root Directory:** `/api`
+- **Branch:** `main`
+- **Procfile:** `web: uvicorn main:app --host 0.0.0.0 --port $PORT`
+- **runtime.txt:** `python-3.12.0`
+- **Variáveis de ambiente:** `SUPABASE_URL`, `SUPABASE_KEY`, `MISE_PYTHON_GITHUB_ATTESTATIONS=false`
 
-| Serviço | Plataforma | Status |
-|---|---|---|
-| API FastAPI | Railway | 🚧 Pendente |
-| Frontend React | Vercel | 🚧 Pendente |
-| Dashboard Streamlit | Streamlit Cloud | 🚧 Pendente |
+## Configuração do Vercel (Frontend)
+
+- **Root Directory:** `frontend`
+- **Framework:** Vite
+- **Variável de ambiente:** `VITE_API_URL=https://********.up.railway.app`
+- **vercel.json:** rewrites para suporte a rotas React
+
+## Configuração do Streamlit Cloud (Dashboard)
+
+- **Repository:** `miguelnbs/helpdesk-pro`
+- **Main file:** `dashboard/app.py`
+- **Python:** 3.12
+- **Secrets:** `SUPABASE_URL`, `SUPABASE_KEY`
+
+## Resultado da Etapa 7
+
+```
+✅ API no Railway — online
+✅ Frontend no Vercel — online
+✅ Dashboard no Streamlit Cloud — online
+✅ Recuperação de senha funcionando em produção
+✅ Sistema completo em produção
+```
