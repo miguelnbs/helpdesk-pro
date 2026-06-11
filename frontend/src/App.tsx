@@ -6,6 +6,9 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import NewTicket from './pages/NewTicket'
 import TicketDetail from './pages/TicketDetail'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+
 
 export default function App() {
   return (
@@ -24,6 +27,14 @@ export default function App() {
               <NewTicket />
             </PrivateRoute>
           } />
+          <Route path="/forgot-password"
+            element={<ForgotPassword />
+
+          } />
+          <Route path="/reset-password"
+            element={<ResetPassword />
+          } />
+
           <Route path="/tickets/:id" element={
             <PrivateRoute>
               <TicketDetail />

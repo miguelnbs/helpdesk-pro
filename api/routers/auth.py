@@ -14,6 +14,13 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    access_token: str
+    new_password: str    
 
 # --- Rotas ---
 
@@ -63,3 +70,24 @@ def login(data: LoginRequest):
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+    
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest):
+    try:
+        supabase.auth.reset_password_email(
+            data.email,
+            options={"redirect_to": "https://helpdesk-pro-rosy.vercel.app/reset-password"}
+        )
+        return {"message": "Email de recuperação enviado"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest):
+    try:
+        supabase.auth.set_session(data.access_token, data.access_token)
+        supabase.auth.update_user({"password": data.new_password})
+        return {"message": "Senha redefinida com sucesso"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))    
