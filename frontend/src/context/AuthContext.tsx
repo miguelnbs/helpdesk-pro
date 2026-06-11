@@ -32,18 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password })
-    const { access_token } = response.data
+    try {
+      const response = await api.post('/auth/login', { email, password })
+      console.log('RESPONSE:', response.data)
+      const { access_token } = response.data
 
-    localStorage.setItem('token', access_token)
+      localStorage.setItem('token', access_token)
 
-    const profileResponse = await api.get('/me')
-    const profile = profileResponse.data
+      const profileResponse = await api.get('/me')
+      const profile = profileResponse.data
 
-    localStorage.setItem('user', JSON.stringify(profile))
+      localStorage.setItem('user', JSON.stringify(profile))
 
-    setToken(access_token)
-    setUser(profile)
+      setToken(access_token)
+      setUser(profile)
+    } catch (err: any) {
+      console.error('ERRO LOGIN:', err.response?.data)
+      throw err
+    }
   }
 
   const logout = () => {
