@@ -39,6 +39,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadTickets()
@@ -51,6 +52,7 @@ export default function Dashboard() {
       setTickets(response.data.tickets)
     } catch (err) {
       console.error(err)
+      setError('Não foi possível carregar os chamados.')
     } finally {
       setLoading(false)
     }
@@ -71,6 +73,12 @@ export default function Dashboard() {
                 </span>
               )}
             </span>
+            <button
+              onClick={() => navigate('/profile')}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Meu perfil
+            </button>
             <button
               onClick={logout}
               className="text-sm text-red-500 hover:underline"
@@ -94,6 +102,12 @@ export default function Dashboard() {
             + Novo Chamado
           </button>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
 
         {/* Lista de chamados */}
         {loading ? (

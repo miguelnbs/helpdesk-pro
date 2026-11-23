@@ -20,6 +20,13 @@ const statusColor: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-700',
 }
 
+const priorityLabel: Record<string, string> = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+  critical: 'Crítica',
+}
+
 export default function TicketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -29,6 +36,8 @@ export default function TicketDetail() {
   const [newStatus, setNewStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadTicket()
@@ -49,23 +58,45 @@ export default function TicketDetail() {
   const handleAddUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
+    setError('')
     try {
       await api.post(`/tickets/${id}/updates`, { message })
       setMessage('')
       loadTicket()
     } catch (err) {
       console.error(err)
+      setError('Não foi possível enviar a resposta.')
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleUpdateStatus = async () => {
+    setError('')
     try {
       await api.patch(`/tickets/${id}/status`, { status: newStatus })
       loadTicket()
     } catch (err) {
       console.error(err)
+      setError('Não foi possível atualizar o status.')
+    }
+  }
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      'Tem certeza que deseja excluir este chamado? O histórico também será removido e a ação não pode ser desfeita.'
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    setError('')
+    try {
+      await api.delete(`/tickets/${id}`)
+      navigate('/dashboard')
+    } catch (err) {
+      console.error(err)
+      setError('Não foi possível excluir o chamado.')
+      setDeleting(false)
     }
   }
 
@@ -84,6 +115,12 @@ export default function TicketDetail() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
         {/* Detalhes do chamado */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-start justify-between mb-4">
@@ -93,14 +130,14 @@ export default function TicketDetail() {
             </span>
           </div>
           <p className="text-gray-600 mb-4">{ticket.description}</p>
-          <div className="flex gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
             <span>Categoria: <strong>{ticket.category}</strong></span>
-            <span>Prioridade: <strong>{ticket.priority}</strong></span>
+            <span>Prioridade: <strong>{priorityLabel[ticket.priority]}</strong></span>
             <span>Aberto em: <strong>{new Date(ticket.created_at).toLocaleDateString('pt-BR')}</strong></span>
           </div>
         </div>
 
-        {/* Atualizar status — admin only */}
+        {/* Atualizar status — somente admin */}
         {isAdmin && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="font-semibold text-gray-700 mb-3">Atualizar Status</h3>
@@ -123,6 +160,20 @@ export default function TicketDetail() {
                 Salvar
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Excluir chamado — somente admin */}
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="font-semibold text-gray-700 mb-3">Zona de risco</h3>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm disabled:opacity-50"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir chamado'}
+            </button>
           </div>
         )}
 

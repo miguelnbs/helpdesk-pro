@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateUser: (user: User) => void
   isAuthenticated: boolean
   isAdmin: boolean
   loading: boolean
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Recupera a sessão salva no localStorage ao carregar
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
@@ -32,24 +34,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await api.post('/auth/login', { email, password })
-      console.log('RESPONSE:', response.data)
-      const { access_token } = response.data
+    const response = await api.post('/auth/login', { email, password })
+    const { access_token } = response.data
 
-      localStorage.setItem('token', access_token)
+    localStorage.setItem('token', access_token)
 
-      const profileResponse = await api.get('/me')
-      const profile = profileResponse.data
+    const profileResponse = await api.get('/me')
+    const profile = profileResponse.data
 
-      localStorage.setItem('user', JSON.stringify(profile))
+    localStorage.setItem('user', JSON.stringify(profile))
 
-      setToken(access_token)
-      setUser(profile)
-    } catch (err: any) {
-      console.error('ERRO LOGIN:', err.response?.data)
-      throw err
-    }
+    setToken(access_token)
+    setUser(profile)
+  }
+
+  // Atualiza o usuário em memória e no localStorage (usado após editar o perfil)
+  const updateUser = (updated: User) => {
+    localStorage.setItem('user', JSON.stringify(updated))
+    setUser(updated)
   }
 
   const logout = () => {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       login,
       logout,
+      updateUser,
       isAuthenticated: !!token,
       isAdmin: user?.role === 'admin',
       loading
